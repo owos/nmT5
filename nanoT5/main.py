@@ -18,7 +18,7 @@ from .utils import (
 )
 
 
-@hydra.main(config_path="configs", config_name="default", version_base='1.1')
+@hydra.main(config_path="configs", config_name="default_opus100_af", version_base='1.1')
 def main(args):
     accelerator = Accelerator(
         cpu=args.device == "cpu",
@@ -33,7 +33,6 @@ def main(args):
     train_dataloader, test_dataloader = get_dataloaders(tokenizer, config, args)
 
     logger.log_args(args)
-
     (
         model,
         optimizer,
