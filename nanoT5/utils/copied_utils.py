@@ -53,7 +53,8 @@ class DataCollatorForT5MLM:
                 for k, v in examples[0].items()
             }
         )
-
+        print(batch)
+        quit()
         input_ids = batch["input_ids"]
         batch_size, expandend_input_length = input_ids.shape
 
@@ -240,6 +241,35 @@ def compute_input_and_target_lengths(inputs_length, noise_density, mean_noise_sp
     return tokens_length, targets_length
 
 
+def pt_T5(examples, lang_id):
+    return examples
+
+def pt_TLM(examples, lang_id):
+    joint_text = [s + " " + t for  s, t in zip(examples['text'], examples['labels'])]    
+    examples['text'] = joint_text 
+    examples['labels'] = joint_text
+    return examples
+
+def pt_NMT(examples, lang_id):
+    examples['text'] = [f"translate to {lang_id.split('-')[-1]}: " + text for text in examples['text']] # is this the proper way to add the lang ID?
+    return examples
+
+def pt_denoise_NMT(examples, lang_id):
+    #same as pt_NMT but with masking 
+    pass
+def pt_denoise_NMT_LM(examples, lang_id):
+    joint_text = [s + " " + t for  s, t in zip(examples['text'], examples['labels'])]    
+    examples['text'] = [f"translate to {lang_id.split('-')[-1]}: " + text for text in examples['text']] # is this the proper way to add the lang ID?
+    examples['labels'] = joint_text
+    return examples
+pt_objectives = {
+    "T5": pt_T5,
+    "TLM": pt_TLM,
+    "NMT": pt_NMT,
+    "denoise_NMT": pt_NMT,
+    "denoise_NMT_LM": pt_denoise_NMT_LM   
+}   
+
 class AdamWScale(Optimizer):
     """
     This AdamW implementation is copied from Huggingface.
@@ -356,8 +386,9 @@ class AdamWScale(Optimizer):
 
 
 def tokenize_function(examples, tokenizer, in_length):
+    breakpoint()
     tokenizer_out = tokenizer(
-        text=examples["text"],
+        text=(examples["text"], examples['labels']),
         return_attention_mask=False,
     )
 
@@ -372,6 +403,8 @@ def tokenize_function(examples, tokenizer, in_length):
     result = {"input_ids": concatenated_ids}
 
     return result
+
+
 
 
 from transformers.data.data_collator import *
