@@ -4,5 +4,5 @@ logs
 scripts
 .neptune
 */__pycache__/*
-# nanoT5/__pycache__/*
-# nanoT5/utils/__pycache__/*
+nanoT5/__pycache__/*
+nanoT5/utils/__pycache__/*
