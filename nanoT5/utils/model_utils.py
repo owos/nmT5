@@ -14,6 +14,8 @@ from .copied_utils import (
     DataCollatorForT5MLM,
     tokenize_function,
     DataCollatorForNI,
+    pt_objectives
+
 )
 from .t5_model import MyT5
 
@@ -69,27 +71,37 @@ def get_tokenizer(args):
 
     return tokenizer
 
+def flatten_opus(examples,lang_id):
+    data = {}
+    data["text"] = examples['translation'][lang_id.split("-")[0]]
+    data["label"] = examples['translation'][lang_id.split("-")[1]]
+    return data
+
 
 def load_dataset_splits(args):
     if args.mode == 'pt':
         dataset = datasets.load_dataset(
-            'c4',
-            'en',
-            streaming=True,
+            args.data.id,
+            args.data.lang,
+            streaming=False#bool(args.data.streaming),
         )
+        if args.data.id =="opus100":
+            dataset = dataset.map(flatten_opus, fn_kwargs={"lang_id":  args.data.lang}, remove_columns=['translation'])
+        # columns_to_drop = list(list(dataset['train'].take(1))[0].keys())
+        # columns_to_drop.remove(args.data.text_column)
 
-        dataset = dataset.remove_columns(
-            ['timestamp', 'url']
-        )
+        # dataset = dataset.remove_columns(
+        #     columns_to_drop
+        # )
 
+        #dataset = dataset.rename_column(args.data.text_column, "text")
         dataset_splits = {
             'train': dataset['train'],
             'test': dataset['validation'],
         }
-
-        assert (
-            dataset['train'].n_shards == 1024
-        ), "We want to have many shards for efficient processing with num_workes in PyTorch dataloader"
+        # assert (
+        #     dataset['train'].n_shards == 1024
+        # ), "We want to have many shards for efficient processing with num_workes in PyTorch dataloader"
     elif args.mode == 'ft':
         dataset_splits = datasets.load_dataset(
             args.data.exec_file_path,
@@ -103,6 +115,7 @@ def load_dataset_splits(args):
 
     return dataset_splits
 
+#def apply_lm_preprocessing():
 
 def process_dataset(dataset_splits, args, tokenizer):
     if args.mode == 'pt':
@@ -123,9 +136,20 @@ def process_dataset(dataset_splits, args, tokenizer):
                 args.data.before_mask_input_length = before_mask_input_length
                 args.data.target_length = target_length
 
+            pt_obj = pt_objectives[args.data.obj] 
+
+            # apply first phase pf pt objective
+            dataset_split = dataset_split.map(
+                pt_obj,
+                batched=True,
+                fn_kwargs={
+                    'lang_id': args.data.id,
+                },
+            )
+
             dataset_split = dataset_split.map(
                 tokenize_function,
-                batched=True,
+                
                 fn_kwargs={
                     'tokenizer': tokenizer,
                     'in_length': before_mask_input_length,
